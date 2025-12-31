@@ -6,6 +6,7 @@ This is a FastAPI-based backend for document extraction (currently focused on KT
 - FastAPI for high-performance API endpoints.
 - Gemini 2.0 Flash integration for OCR and data extraction.
 - CORS enabled for frontend integration.
+- KTP extraction caching with SQLAlchemy to store and deduplicate KTP records.
 
 ## Prerequisites
 - Python 3.9+
