@@ -17,6 +17,9 @@ load_dotenv()
 # API Key Configuration
 API_KEY = os.getenv("API_KEY")
 
+# CORS Configuration - comma-separated list of allowed origins
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+
 
 def verify_api_key(x_api_key: str = Header(..., description="API Key for authentication")):
     """Dependency to verify the API key from request headers."""
@@ -40,13 +43,13 @@ client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
 app = FastAPI()
 
-# Enable CORS to allow access from any frontend
+# Enable CORS with configured origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["X-API-Key", "Content-Type"],
 )
 
 @app.get("/")

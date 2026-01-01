@@ -29,6 +29,9 @@ This is a FastAPI-based backend for document extraction (currently focused on KT
    Create a `.env` file based on `.env.example`:
    ```env
    GOOGLE_API_KEY=your_actual_api_key
+   DATABASE_URL=postgresql://postgres:[password]@[host]:5432/postgres
+   API_KEY=your_secret_api_key
+   ALLOWED_ORIGINS=http://localhost:3000,https://core.badai.tech
    ```
 
 ## Running the API
@@ -38,5 +41,18 @@ uvicorn main:app --reload
 The API will be available at `http://127.0.0.1:8000`.
 
 ## API Endpoints
-- `GET /`: Health check.
-- `POST /extract`: Upload an image (KTP) to extract data in JSON format.
+
+### `GET /` - Health Check
+Returns API status. **No authentication required.**
+
+### `POST /extract` - Extract KTP Data
+Upload an image (KTP) to extract data in JSON format.
+
+**Authentication:** Requires `X-API-Key` header.
+
+**Example:**
+```bash
+curl -X POST "http://localhost:8000/extract" \
+  -H "X-API-Key: your_secret_api_key" \
+  -F "file=@ktp_image.jpg"
+```
