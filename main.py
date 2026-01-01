@@ -3,7 +3,7 @@ import json
 import hashlib
 from datetime import datetime, timedelta
 import google.genai as genai
-from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
@@ -11,10 +11,29 @@ from sqlalchemy.orm import Session
 from database import SessionLocal, engine, get_db
 import models
 
+# Load environment variables first
+load_dotenv()
+
+# API Key Configuration
+API_KEY = os.getenv("API_KEY")
+
+
+def verify_api_key(x_api_key: str = Header(..., description="API Key for authentication")):
+    """Dependency to verify the API key from request headers."""
+    if not API_KEY:
+        raise HTTPException(
+            status_code=500,
+            detail="API_KEY not configured on server"
+        )
+    if x_api_key != API_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API Key"
+        )
+    return x_api_key
+
 # Initialize database tables
 models.Base.metadata.create_all(bind=engine)
-
-load_dotenv()
 
 # Setup Gemini Client
 client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
@@ -35,7 +54,11 @@ def home():
     return {"message": "BAD CORE API is Running!"}
 
 @app.post("/extract")
-async def extract_document(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def extract_document(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
     # 1. Read File
     content = await file.read()
     
