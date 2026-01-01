@@ -1,7 +1,7 @@
 # BAD CORE API
 **Business Automated Docs - Character Optical Recognition Engine**
 
-This is a FastAPI-based backend for document extraction (currently focused on KTP) using the Google Gemini 2.0 Flash model.
+This is a FastAPI-based backend for document extraction (currently focused on KTP) using the publicly available Gemini API.
 
 ## Features
 - FastAPI for high-performance API endpoints.
