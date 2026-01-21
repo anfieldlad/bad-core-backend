@@ -1,32 +1,10 @@
-import os
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from dotenv import load_dotenv
+"""Backward compatibility wrapper for database module.
 
-load_dotenv(override=True)
+This file maintains backward compatibility for existing imports.
+It re-exports database objects from the new app.db.session module.
+"""
+from app.db.session import SessionLocal, engine, get_db
+from app.db.base import Base
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./ktp.db")
-
-# If it's a supabase/postgres URL, we might need to handle the 'postgres://' vs 'postgresql://' protocol
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-# Diagnostic: Print the host being used
-try:
-    host_name = DATABASE_URL.split("@")[1].split(":")[0]
-    print(f"INFO: Connecting to database host: {host_name}")
-except Exception:
-    print(f"INFO: Connecting to database: {DATABASE_URL}")
-
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-Base = declarative_base()
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Export for backward compatibility
+__all__ = ["SessionLocal", "engine", "get_db", "Base"]
