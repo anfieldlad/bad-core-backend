@@ -1,12 +1,12 @@
-from sqlalchemy import Column, Integer, String, DateTime, JSON
-from datetime import datetime
-from database import Base
+"""Backward compatibility wrapper for models module.
 
-class KTPRecord(Base):
-    __tablename__ = "ktp_records"
+This file maintains backward compatibility for existing imports.
+It re-exports model classes from the new app.models module.
+"""
+from app.models.document_record import DocumentRecord
 
-    id = Column(Integer, primary_key=True, index=True)
-    nik = Column(String, index=True)
-    image_hash = Column(String, index=True)
-    data = Column(JSON)
-    created_at = Column(DateTime, default=datetime.utcnow)
+# Alias for backward compatibility
+KTPRecord = DocumentRecord
+
+# Export for backward compatibility
+__all__ = ["KTPRecord", "DocumentRecord"]
