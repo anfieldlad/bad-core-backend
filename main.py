@@ -82,7 +82,7 @@ async def extract_document(
     try:
         # Call Gemini if no hash match
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash-lite",
             contents=[
                 genai.types.Part.from_bytes(data=content, mime_type=file.content_type),
                 prompt
