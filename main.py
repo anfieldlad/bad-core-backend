@@ -2,13 +2,13 @@ import os
 import json
 import hashlib
 from datetime import datetime, timedelta
-import google.genai as genai
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 
 from database import SessionLocal, engine, get_db
+from providers import get_vision_provider
 import models
 
 # Load environment variables first
@@ -38,8 +38,9 @@ def verify_api_key(x_api_key: str = Header(..., description="API Key for authent
 # Initialize database tables
 models.Base.metadata.create_all(bind=engine)
 
-# Setup Gemini Client
-client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+# Setup the configured LLM provider (Gemini or any OpenAI-compatible endpoint)
+llm = get_vision_provider()
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").lower()
 
 app = FastAPI()
 
@@ -80,16 +81,13 @@ async def extract_document(
     prompt = "Extract data from this KTP image to JSON format: {NIK, nama, tempat lahir, tanggal lahir, jenis kelamin, alamat, agama, status perkawinan, pekerjaan, kewarganegaraan}"
 
     try:
-        # Call Gemini if no hash match
-        response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
-            contents=[
-                genai.types.Part.from_bytes(data=content, mime_type=file.content_type),
-                prompt
-            ]
+        # Call the configured LLM provider if no hash match
+        extracted_text = llm.extract(
+            image_bytes=content,
+            mime_type=file.content_type,
+            prompt=prompt,
         )
-        
-        extracted_text = response.text
+
         clean_json = extracted_text.replace("```json", "").replace("```", "").strip()
         data = json.loads(clean_json)
         
@@ -116,7 +114,7 @@ async def extract_document(
             db.add(new_record)
             db.commit()
             
-        return {"status": "success", "source": "gemini", "data": data}
+        return {"status": "success", "source": LLM_PROVIDER, "data": data}
         
     except Exception as e:
         return {"status": "error", "detail": str(e)}

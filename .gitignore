@@ -10,3 +10,6 @@ env/
 # FastAPI / Uvicorn
 .DS_Store
 *.log
+
+# Secrets / local infra (never commit)
+.ssh-config.local
