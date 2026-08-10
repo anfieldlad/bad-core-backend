@@ -19,7 +19,10 @@ try:
 except Exception:
     print(f"INFO: Connecting to database: {DATABASE_URL}")
 
-engine = create_engine(DATABASE_URL)
+# pool_pre_ping validates a pooled connection before handing it out. Without it,
+# connections held across a database outage (e.g. a paused Supabase project) are
+# stale on return and the first request after recovery fails.
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()

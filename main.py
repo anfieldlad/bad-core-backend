@@ -1,10 +1,13 @@
 import os
 import json
 import hashlib
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from database import SessionLocal, engine, get_db
@@ -35,14 +38,50 @@ def verify_api_key(x_api_key: str = Header(..., description="API Key for authent
         )
     return x_api_key
 
-# Initialize database tables
-models.Base.metadata.create_all(bind=engine)
+# Schema creation is deliberately NOT done at import time. Doing so opens a
+# database connection while the module loads, so an unreachable database made
+# the import raise, uvicorn exit, and systemd restart the service in a loop.
+_schema_ready = False
+
+
+def _ensure_schema() -> bool:
+    """Create tables if needed. Returns True once the schema exists.
+
+    Safe to call repeatedly: it retries until it succeeds, then short-circuits.
+    """
+    global _schema_ready
+    if not _schema_ready:
+        try:
+            models.Base.metadata.create_all(bind=engine)
+            _schema_ready = True
+        except Exception as exc:
+            print(f"WARN: schema init deferred, database unreachable: {exc}")
+    return _schema_ready
+
+
+def _db_reachable() -> bool:
+    """Check live database connectivity with a trivial query."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return True
+    except Exception:
+        return False
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # A failure here is logged, not raised: the process must stay up so the
+    # service degrades instead of crash-looping.
+    _ensure_schema()
+    yield
+
 
 # Setup the configured LLM provider (Gemini or any OpenAI-compatible endpoint)
 llm = get_vision_provider()
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").lower()
 
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 # Enable CORS with configured origins
 app.add_middleware(
@@ -56,6 +95,21 @@ app.add_middleware(
 @app.get("/")
 def home():
     return {"message": "BAD CORE API is Running!"}
+
+@app.get("/health")
+def health():
+    """Report database reachability. 503 when degraded, so probes can see it."""
+    reachable = _db_reachable()
+    if reachable:
+        # Pick up schema creation that was deferred by an earlier outage.
+        _ensure_schema()
+    return JSONResponse(
+        content={
+            "status": "ok" if reachable else "degraded",
+            "database": "up" if reachable else "down",
+        },
+        status_code=200 if reachable else 503,
+    )
 
 @app.post("/extract")
 async def extract_document(

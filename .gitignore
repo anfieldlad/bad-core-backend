@@ -11,5 +11,9 @@ env/
 .DS_Store
 *.log
 
+# Local sqlite databases (tests, scratch)
+*.db
+.pytest_cache/
+
 # Secrets / local infra (never commit)
 .ssh-config.local

@@ -1,0 +1,7 @@
+# Test-only dependencies. Kept out of requirements.txt so the production venv
+# stays small (the host has 1.9GB RAM and no swap).
+#
+#   pip install -r requirements.txt -r requirements-dev.txt
+#   python -m pytest
+pytest
+httpx
