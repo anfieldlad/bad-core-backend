@@ -1,0 +1,15 @@
+[Unit]
+Description=Daily Supabase keepalive ping for bad-core
+Documentation=https://github.com/anfieldlad/bad-core-backend/blob/master/keepalive.py
+
+[Timer]
+OnCalendar=daily
+# Spread the run rather than firing exactly at midnight.
+RandomizedDelaySec=1h
+# Run a missed ping once the machine is back, instead of skipping the day. Without this,
+# a reboot spanning the scheduled point silently loses a ping.
+Persistent=true
+Unit=bad-core-keepalive.service
+
+[Install]
+WantedBy=timers.target

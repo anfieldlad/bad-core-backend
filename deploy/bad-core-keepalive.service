@@ -1,0 +1,17 @@
+[Unit]
+Description=Supabase keepalive ping for bad-core
+Documentation=https://github.com/anfieldlad/bad-core-backend/blob/master/keepalive.py
+# The ping needs working DNS and routing, not just a configured interface.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=dioriza
+Group=dioriza
+WorkingDirectory=/opt/bad-core-backend
+EnvironmentFile=/opt/bad-core-backend/.env
+ExecStart=/opt/bad-core-backend/.venv/bin/python keepalive.py
+
+# A ping that cannot finish in a minute is a failure, not something to hang on.
+TimeoutStartSec=60

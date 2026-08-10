@@ -2,7 +2,7 @@ import os
 import json
 import hashlib
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -69,6 +69,34 @@ def _db_reachable() -> bool:
         return False
 
 
+# Twice the daily keepalive cadence: tolerates one missed run, exposes a dead timer.
+KEEPALIVE_STALE_AFTER = timedelta(hours=48)
+
+
+def _keepalive_status():
+    """Report when the Supabase keepalive last ran (see keepalive.py).
+
+    A stale result is a warning about a future pause, not a current fault, so it does not
+    change the HTTP status code.
+    """
+    try:
+        with SessionLocal() as session:
+            row = session.get(models.Keepalive, 1)
+    except Exception:
+        return {"last_ping": None, "stale": True}
+
+    if row is None or row.last_ping is None:
+        return {"last_ping": None, "stale": True}
+
+    last_ping = row.last_ping
+    # sqlite does not preserve tzinfo; treat a naive timestamp as UTC.
+    if last_ping.tzinfo is None:
+        last_ping = last_ping.replace(tzinfo=timezone.utc)
+
+    age = datetime.now(timezone.utc) - last_ping
+    return {"last_ping": last_ping.isoformat(), "stale": age > KEEPALIVE_STALE_AFTER}
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # A failure here is logged, not raised: the process must stay up so the
@@ -100,16 +128,15 @@ def home():
 def health():
     """Report database reachability. 503 when degraded, so probes can see it."""
     reachable = _db_reachable()
+    payload = {
+        "status": "ok" if reachable else "degraded",
+        "database": "up" if reachable else "down",
+    }
     if reachable:
         # Pick up schema creation that was deferred by an earlier outage.
         _ensure_schema()
-    return JSONResponse(
-        content={
-            "status": "ok" if reachable else "degraded",
-            "database": "up" if reachable else "down",
-        },
-        status_code=200 if reachable else 503,
-    )
+        payload["keepalive"] = _keepalive_status()
+    return JSONResponse(content=payload, status_code=200 if reachable else 503)
 
 @app.post("/extract")
 async def extract_document(
